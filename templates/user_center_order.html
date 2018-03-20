@@ -1,0 +1,103 @@
+{% extends 'base_user_center.html' %}
+{% load static from staticfiles %}
+{% block right_content %}
+		<div class="right_content clearfix">
+				<h3 class="common_title2">全部订单</h3>
+            {% csrf_token %}
+            {% for order in order_page %}
+				<ul class="order_list_th w978 clearfix">
+					<li class="col01">{{ order.create_time|date:'Y-m-d H:i:s' }}</li>
+					<li class="col02">订单号：{{ order.order_id }}</li>
+					<li class="col02 stress">{{ order.status_title }}</li>
+				</ul>
+				<table class="order_list_table w980">
+					<tbody>
+						<tr>
+							<td width="55%">
+                                {% for order_sku in order.order_skus %}
+								<ul class="order_goods_list clearfix">					
+									<li class="col01"><a href="{% url 'goods:detail' order_sku.sku.id %}"><img src="{{ order_sku.sku.image.url }}"></a></li>
+									<li class="col02">{{ order_sku.sku.name }}<em>{{ order_sku.sku.price }}元/{{ order_sku.sku.unite }}</em></li>
+									<li class="col03">{{ order_sku.count }}</li>
+									<li class="col04">{{ order_sku.amount }}元</li>
+								</ul>
+                                {% endfor %}
+							</td>
+							<td width="15%">{{ order.total_pay }}元(含运费{{ order.transit_price }})</td>
+							<td width="15%">{{ order.status_title }}</td>
+							<td width="15%"><a href="javascript:;" class="oper_btn" order_id="{{ order.order_id }}" status="{{ order.order_status }}">去付款</a></td>
+						</tr>
+					</tbody>
+				</table>
+                {% empty %}
+                <h2>当前没有任何订单。</h2>
+				{% endfor %}
+				<div class="pagenation">
+                    {% if sku_page.has_previous  %}
+					    <a href="{% url 'user:order' sku_page.previous_page_number %}">&lt;上一页</a>
+                    {% endif %}
+                    {% for pindex in pages %}
+					    <a href="{% url 'user:order' pindex %}" {% if pindex == sku_pages.number %}class="active"{% endif %}>{{ pindex }}</a>
+					{% endfor %}
+                    {% if sku_page.has_next %}
+					    <a href="{% url 'user:order' sku_page.next_page_number %}">下一页&gt;</a>
+                    {% endif %}
+				</div>
+		</div>
+{% endblock right_content %}
+
+{% block bottomfiles %}
+    <script src="{% static 'js/jquery-1.12.4.min.js' %}"></script>
+    <script>
+        // 显示订单的状态
+        $('.oper_btn').each(function () {
+            // 订单状态字典
+             var status_dict = {
+            1: '去支付',
+            2: '待发货',
+            3: '查看物流',
+            4: '待评论',
+            5: '已完成'
+        };
+
+        // 获取订单的状态
+        var status = $(this).attr('status')
+
+        // 根据状态设置按钮信息
+        $(this).text(status_dict[status])
+    });
+
+
+
+        // 按钮点击事件
+        // 根据订单状态,改变功能
+        $('.oper_btn').click(function () {
+            //订单id
+            var order_id = $(this).attr('order_id')
+
+            var status = $(this).attr('status')
+
+            if (status==1){
+                //支付功能
+                csrf = $('input[name=csrfmiddlewaretoken]').val();
+
+                $.post('/order/pay', {'order_id':order_id,'csrfmiddlewaretoken':csrf}, function (data) {
+                    if (data.res == 3){
+
+                        window.open(data.pay_url)
+                    } else if (data.res == 5){
+                        alert('同步返回验证：支付完成')
+                    }else {
+                        alert(data.errmsg)
+                    }
+                })
+            } else if (status == 4){
+                // 跳转到商品评论页面
+                location.href = '/order/comment/' + order_id
+            }
+
+
+        })
+
+    </script>
+{% endblock %}
